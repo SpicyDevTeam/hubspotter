@@ -1,0 +1,79 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>CS-Cart → HubSpot Sync</title>
+    <style>
+      body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 24px; }
+      input, button { padding: 8px 12px; font-size: 14px; }
+      .row { margin-bottom: 12px; }
+      .logs { white-space: pre-wrap; background: #0b1021; color: #e6edf3; padding: 12px; border-radius: 6px; min-height: 160px; }
+      table { border-collapse: collapse; width: 100%; }
+      th, td { border-bottom: 1px solid #eee; padding: 8px; text-align: left; }
+    </style>
+  </head>
+  <body>
+    <h2>CS-Cart → HubSpot Sync</h2>
+    <div class="row">
+      <label>Company IDs (comma separated): </label>
+      <input id="ids" placeholder="e.g. 1,2,3" style="width: 280px" />
+      <label style="margin-left: 16px;"><input id="dry" type="checkbox" checked /> Dry-run</label>
+      <button id="preview">Preview Companies</button>
+      <button id="sync">Run Sync</button>
+    </div>
+    <div class="row">
+      <strong>Companies Preview</strong>
+      <div id="count"></div>
+      <table id="table"><thead><tr><th>ID</th><th>Name</th><th>Email</th><th>Phone</th><th>City</th></tr></thead><tbody></tbody></table>
+    </div>
+    <div class="row">
+      <strong>Logs</strong>
+      <div id="logs" class="logs"></div>
+    </div>
+    <script>
+      const idsEl = document.getElementById('ids');
+      const dryEl = document.getElementById('dry');
+      const previewBtn = document.getElementById('preview');
+      const syncBtn = document.getElementById('sync');
+      const tableBody = document.querySelector('#table tbody');
+      const countEl = document.getElementById('count');
+      const logsEl = document.getElementById('logs');
+
+      function setLogs(lines) {
+        logsEl.textContent = (lines || []).map(e => typeof e === 'string' ? e : `${e.level || 'info'}: ${e.message || ''}`).join('\n');
+      }
+
+      previewBtn.onclick = async () => {
+        tableBody.innerHTML = '';
+        countEl.textContent = 'Loading...';
+        const ids = idsEl.value.trim();
+        const res = await fetch(`/api/companies${ids ? `?ids=${encodeURIComponent(ids)}` : ''}`);
+        const json = await res.json();
+        countEl.textContent = json.ok ? `Found ${json.count} companies` : `Error: ${json.error}`;
+        if (json.ok) {
+          for (const c of json.data) {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `<td>${c.company_id}</td><td>${c.company}</td><td>${c.email || ''}</td><td>${c.phone || ''}</td><td>${c.city || ''}</td>`;
+            tableBody.appendChild(tr);
+          }
+        }
+      };
+
+      syncBtn.onclick = async () => {
+        setLogs(['Running sync...']);
+        const idsStr = idsEl.value.trim();
+        const body = {
+          dryRun: !!dryEl.checked,
+          companyIds: idsStr ? idsStr.split(',').map(s => Number(s.trim())).filter(n => Number.isFinite(n)) : undefined
+        };
+        const res = await fetch('/api/sync', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        const json = await res.json();
+        if (json.ok) setLogs([`Done. Companies: ${json.result.companiesProcessed}, Users: ${json.result.usersProcessed}`, ...json.events]);
+        else setLogs([`Error: ${json.error}`, ...(json.events || [])]);
+      };
+    </script>
+  </body>
+  </html>
+
+

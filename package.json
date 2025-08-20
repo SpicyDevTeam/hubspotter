@@ -1,0 +1,38 @@
+{
+  "name": "spicerack-hubspotr",
+  "version": "0.1.0",
+  "description": "Sync CS-Cart database (companies + admin users) to HubSpot (companies + contacts)",
+  "main": "src/sync.js",
+  "type": "commonjs",
+  "scripts": {
+    "dev": "next dev -p 3021",
+    "build": "next build",
+    "start": "next start -p 3021",
+    "sync": "node src/sync.js",
+    "dry": "node src/sync.js --dry-run"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "@hubspot/api-client": "^11.2.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "mysql2": "^3.9.7",
+    "p-limit": "^3.1.0",
+    "yargs": "^17.7.2"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.10",
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "autoprefixer": "^10.4.20",
+    "next": "^14.2.5",
+    "postcss": "^8.4.41",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "tailwindcss": "^3.4.10",
+    "typescript": "^5.5.3"
+  }
+}

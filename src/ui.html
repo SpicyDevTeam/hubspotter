@@ -1,0 +1,145 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>CS-Cart → HubSpot Sync</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+  </head>
+  <body class="bg-gray-50 text-gray-900">
+    <div class="max-w-6xl mx-auto p-6">
+      <div class="flex items-center justify-between mb-6">
+        <h2 class="text-2xl font-semibold">CS-Cart → HubSpot Sync</h2>
+        <span id="statusBadge" class="text-xs px-2.5 py-1 rounded bg-emerald-100 text-emerald-700">Idle</span>
+      </div>
+
+      <div class="flex flex-wrap gap-3 items-center mb-4">
+        <label class="text-sm">Company IDs</label>
+        <input id="ids" placeholder="e.g. 1,2,3" class="border rounded px-3 py-2 text-sm w-72" />
+        <label class="inline-flex items-center gap-2 text-sm"><input id="dry" type="checkbox" checked class="accent-emerald-600" /> Dry-run</label>
+        <button id="preview" class="px-4 py-2 rounded bg-slate-800 hover:bg-slate-700 text-white text-sm">Preview Companies</button>
+        <button id="sync" class="px-4 py-2 rounded bg-emerald-600 hover:bg-emerald-500 text-white text-sm">Run Full Sync</button>
+      </div>
+
+      <div class="bg-white rounded border shadow-sm">
+        <div class="px-4 py-3 border-b flex items-center justify-between">
+          <strong>Companies Preview</strong>
+          <div id="count" class="text-sm text-gray-600"></div>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="min-w-full text-sm" id="table">
+            <thead class="bg-gray-100 text-gray-700">
+              <tr>
+                <th class="text-left font-medium px-3 py-2">ID</th>
+                <th class="text-left font-medium px-3 py-2">Name</th>
+                <th class="text-left font-medium px-3 py-2">Email</th>
+                <th class="text-left font-medium px-3 py-2">Phone</th>
+                <th class="text-left font-medium px-3 py-2">City</th>
+                <th class="text-right font-medium px-3 py-2">Actions</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="mt-6">
+        <strong class="block mb-2">Logs</strong>
+        <div id="logs" class="whitespace-pre-wrap bg-slate-900 text-slate-50 p-3 rounded min-h-[160px]"></div>
+      </div>
+    </div>
+    <script>
+      const idsEl = document.getElementById('ids');
+      const dryEl = document.getElementById('dry');
+      const previewBtn = document.getElementById('preview');
+      const syncBtn = document.getElementById('sync');
+      const tableBody = document.querySelector('#table tbody');
+      const statusBadge = document.getElementById('statusBadge');
+      const countEl = document.getElementById('count');
+      const logsEl = document.getElementById('logs');
+
+      function setLogs(lines) {
+        logsEl.textContent = (lines || []).map(e => typeof e === 'string' ? e : `${e.level || 'info'}: ${e.message || ''}`).join('\n');
+      }
+
+      async function refreshStatus() {
+        try {
+          const r = await fetch('/api/status');
+          const s = await r.json();
+          if (s.ok) {
+            if (s.global || (s.companies && s.companies.length)) {
+              statusBadge.textContent = 'Running';
+              statusBadge.className = 'text-xs px-2.5 py-1 rounded bg-amber-100 text-amber-700';
+            } else {
+              statusBadge.textContent = 'Idle';
+              statusBadge.className = 'text-xs px-2.5 py-1 rounded bg-emerald-100 text-emerald-700';
+            }
+          }
+        } catch (e) {}
+      }
+
+      previewBtn.onclick = async () => {
+        tableBody.innerHTML = '';
+        countEl.textContent = 'Loading...';
+        const ids = idsEl.value.trim();
+        const res = await fetch(`/api/companies${ids ? `?ids=${encodeURIComponent(ids)}` : ''}`);
+        const json = await res.json();
+        countEl.textContent = json.ok ? `Found ${json.count} companies` : `Error: ${json.error}`;
+        if (json.ok) {
+          for (const c of json.data) {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+              <td class="px-3 py-2">${c.company_id}</td>
+              <td class="px-3 py-2">${c.company}</td>
+              <td class="px-3 py-2">${c.email || ''}</td>
+              <td class="px-3 py-2">${c.phone || ''}</td>
+              <td class="px-3 py-2">${c.city || ''}</td>
+              <td class="px-3 py-2 text-right">
+                <button data-id="${c.company_id}" class="row-sync px-3 py-1.5 rounded bg-orange-500 hover:bg-orange-400 text-white">Sync</button>
+              </td>
+            `;
+            tableBody.appendChild(tr);
+          }
+          bindRowButtons();
+        }
+      };
+
+      function bindRowButtons() {
+        const buttons = document.querySelectorAll('.row-sync');
+        for (const btn of buttons) {
+          btn.onclick = async () => {
+            const id = Number(btn.getAttribute('data-id'));
+            btn.disabled = true; btn.classList.add('opacity-60');
+            setLogs([`Syncing company ${id}...`]);
+            await refreshStatus();
+            const res = await fetch('/api/sync', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ dryRun: !!dryEl.checked, companyIds: [id] }) });
+            const json = await res.json();
+            if (json.ok) setLogs([`Done single company ${id}. Companies: ${json.result.companiesProcessed}, Users: ${json.result.usersProcessed}`, ...json.events]);
+            else setLogs([`Error: ${json.error}`, ...(json.events || [])]);
+            await refreshStatus();
+            btn.disabled = false; btn.classList.remove('opacity-60');
+          };
+        }
+      }
+
+      syncBtn.onclick = async () => {
+        setLogs(['Running sync...']);
+        const idsStr = idsEl.value.trim();
+        const body = {
+          dryRun: !!dryEl.checked,
+          companyIds: idsStr ? idsStr.split(',').map(s => Number(s.trim())).filter(n => Number.isFinite(n)) : undefined
+        };
+        await refreshStatus();
+        const res = await fetch('/api/sync', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        const json = await res.json();
+        if (json.ok) setLogs([`Done. Companies: ${json.result.companiesProcessed}, Users: ${json.result.usersProcessed}`, ...json.events]);
+        else setLogs([`Error: ${json.error}`, ...(json.events || [])]);
+        await refreshStatus();
+      };
+
+      refreshStatus();
+    </script>
+  </body>
+  </html>
+
+
