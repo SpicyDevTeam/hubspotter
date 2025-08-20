@@ -3,6 +3,21 @@
 const { Client } = require('@hubspot/api-client');
 const { config } = require('./config');
 
+// Rate limiting utility
+function sleep(ms) {
+	return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+// Rate-limited API call wrapper
+async function rateLimitedCall(apiCall) {
+	const result = await apiCall();
+	// Add delay after each API call to respect rate limits
+	if (config.rateLimitDelay > 0) {
+		await sleep(config.rateLimitDelay);
+	}
+	return result;
+}
+
 function getClient() {
 	if (!config.hubspotToken) {
 		throw new Error('HUBSPOT_PRIVATE_APP_TOKEN is not set');
@@ -13,7 +28,7 @@ function getClient() {
 async function ensureCustomProperty(client, objectType, propertyName, propertyDef) {
 	console.log(`🔍 Checking if property ${propertyName} exists for ${objectType}...`);
 	try {
-		const existing = await client.crm.properties.coreApi.getByName(objectType, propertyName);
+		const existing = await rateLimitedCall(() => client.crm.properties.coreApi.getByName(objectType, propertyName));
 		console.log(`✓ Property ${propertyName} already exists for ${objectType}`);
 		return;
 	} catch (err) {
@@ -32,7 +47,7 @@ async function ensureCustomProperty(client, objectType, propertyName, propertyDe
 					options: []
 				};
 				console.log(`📋 Property request:`, JSON.stringify(propertyRequest, null, 2));
-				const result = await client.crm.properties.coreApi.create(objectType, propertyRequest);
+				const result = await rateLimitedCall(() => client.crm.properties.coreApi.create(objectType, propertyRequest));
 				console.log(`✅ Successfully created property ${propertyName} for ${objectType}`);
 				console.log(`📄 Created property details:`, result);
 				return;
@@ -57,7 +72,7 @@ async function ensureSchema() {
 	// Test basic API access first
 	try {
 		console.log('Testing HubSpot API access...');
-		const testResponse = await client.crm.companies.basicApi.getPage(1);
+		const testResponse = await rateLimitedCall(() => client.crm.companies.basicApi.getPage(1));
 		console.log('✓ HubSpot API access confirmed');
 	} catch (testErr) {
 		console.error('❌ HubSpot API access failed:', testErr.message);
@@ -122,7 +137,7 @@ async function searchObjectByProperty(client, objectType, propertyName, value) {
 		limit: 1,
 		properties: ['hs_object_id', propertyName],
 	};
-	const res = await client.crm[objectType].searchApi.doSearch(req);
+	const res = await rateLimitedCall(() => client.crm[objectType].searchApi.doSearch(req));
 	return res?.results?.[0] || null;
 }
 
@@ -158,7 +173,7 @@ async function upsertCompany(client, properties, { dryRun = false } = {}) {
 			return { id: existing.id, created: false };
 		}
 		console.log(`🔄 Updating existing company ${existing.id}`);
-		await client.crm.companies.basicApi.update(existing.id, { properties });
+		await rateLimitedCall(() => client.crm.companies.basicApi.update(existing.id, { properties }));
 		console.log(`✅ Updated company ${existing.id}`);
 		return { id: existing.id, created: false };
 	}
@@ -170,7 +185,7 @@ async function upsertCompany(client, properties, { dryRun = false } = {}) {
 	
 	console.log(`🆕 Creating new company`);
 	console.log(`📋 Company creation request:`, JSON.stringify({ properties }, null, 2));
-	const res = await client.crm.companies.basicApi.create({ properties });
+	const res = await rateLimitedCall(() => client.crm.companies.basicApi.create({ properties }));
 	console.log(`✅ Created new company with ID: ${res.id}`);
 	console.log(`📄 Company creation response:`, res);
 	return { id: res.id, created: true };
@@ -208,7 +223,7 @@ async function upsertContact(client, properties, { dryRun = false } = {}) {
 			return { id: existing.id, created: false };
 		}
 		console.log(`🔄 Updating existing contact ${existing.id}`);
-		await client.crm.contacts.basicApi.update(existing.id, { properties });
+		await rateLimitedCall(() => client.crm.contacts.basicApi.update(existing.id, { properties }));
 		console.log(`✅ Updated contact ${existing.id}`);
 		return { id: existing.id, created: false };
 	}
@@ -220,7 +235,7 @@ async function upsertContact(client, properties, { dryRun = false } = {}) {
 	
 	console.log(`🆕 Creating new contact`);
 	console.log(`📋 Contact creation request:`, JSON.stringify({ properties }, null, 2));
-	const res = await client.crm.contacts.basicApi.create({ properties });
+	const res = await rateLimitedCall(() => client.crm.contacts.basicApi.create({ properties }));
 	console.log(`✅ Created new contact with ID: ${res.id}`);
 	console.log(`📄 Contact creation response:`, res);
 	return { id: res.id, created: true };
@@ -229,9 +244,9 @@ async function upsertContact(client, properties, { dryRun = false } = {}) {
 async function associateContactToCompany(client, contactId, companyId, { dryRun = false } = {}) {
 	if (!contactId || !companyId) return;
 	if (dryRun) return;
-	await client.crm.associations.v4.basicApi.create('contacts', contactId, 'companies', companyId, [
+	await rateLimitedCall(() => client.crm.associations.v4.basicApi.create('contacts', contactId, 'companies', companyId, [
 		{ associationCategory: 'HUBSPOT_DEFINED', associationTypeId: 280 }
-	]);
+	]));
 }
 
 module.exports = {

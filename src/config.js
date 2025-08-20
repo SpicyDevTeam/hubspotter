@@ -25,7 +25,7 @@ const config = {
 		password: process.env.DB_PASSWORD || '',
 		database: process.env.DB_NAME || 'cscart',
 	},
-	concurrency: getNumber('SYNC_CONCURRENCY', 5),
+	concurrency: getNumber('SYNC_CONCURRENCY', 2), // Reduced from 5 to help with rate limiting
 	pageSize: getNumber('PAGE_SIZE', 100),
 	companyIdsFilter: (process.env.COMPANY_IDS || '')
 		.split(',')
@@ -35,6 +35,9 @@ const config = {
 		.filter((n) => Number.isFinite(n)),
 	dryRun: String(process.env.DRY_RUN || '').toLowerCase() === 'true',
 	serverPort: getNumber('PORT', 3000),
+	// Rate limiting: 100 requests per 10 seconds = 10 requests per second max
+	// We'll be more conservative: 8 requests per second with 125ms delay
+	rateLimitDelay: getNumber('RATE_LIMIT_DELAY', 125), // milliseconds between requests
 };
 
 module.exports = { config };
