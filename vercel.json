@@ -7,17 +7,5 @@
     "app/api/**/*.ts": {
       "maxDuration": 60
     }
-  },
-  "env": {
-    "HUBSPOT_PRIVATE_APP_TOKEN": "@hubspot_token",
-    "DB_HOST": "@db_host",
-    "DB_PORT": "@db_port", 
-    "DB_USER": "@db_user",
-    "DB_PASSWORD": "@db_password",
-    "DB_NAME": "@db_name",
-    "SYNC_CONCURRENCY": "5",
-    "PAGE_SIZE": "500",
-    "COMPANY_IDS": "",
-    "DRY_RUN": "false"
   }
 }
