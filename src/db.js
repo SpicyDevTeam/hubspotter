@@ -13,31 +13,55 @@ async function createPool() {
 		connectionLimit: Math.max(5, config.concurrency * 2),
 		charset: 'utf8mb4',
 		multipleStatements: false,
+		acquireTimeout: 30000,
+		timeout: 30000,
+		reconnect: true,
 	});
 	return pool;
 }
 
-async function fetchCompanies(pool, { pageSize, companyIds }) {
+async function fetchCompanies(pool, { pageSize, companyIds, includeCounts = true }) {
 	const where = [];
 	const params = [];
 	if (companyIds && companyIds.length > 0) {
-		where.push(`company_id IN (${companyIds.map(() => '?').join(',')})`);
+		where.push(`c.company_id IN (${companyIds.map(() => '?').join(',')})`);
 		params.push(...companyIds);
 	}
 	const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
-	const sql = `
-		SELECT 
-			c.company_id, c.company, c.email, c.url, c.phone, c.city, c.state, c.country, c.zipcode, c.address, c.timestamp,
-			COUNT(DISTINCT p.product_id) as product_count,
-			COUNT(DISTINCT o.order_id) as order_count
-		FROM cscart_companies c
-		LEFT JOIN cscart_products p ON p.company_id = c.company_id
-		LEFT JOIN cscart_orders o ON o.company_id = c.company_id
-		${whereSql}
-		GROUP BY c.company_id, c.company, c.email, c.url, c.phone, c.city, c.state, c.country, c.zipcode, c.address, c.timestamp
-		ORDER BY c.company_id ASC
-		LIMIT ? OFFSET ?
-	`;
+	
+	let sql;
+	if (includeCounts) {
+		sql = `
+			SELECT 
+				c.company_id, c.company, c.email, c.url, c.phone, c.city, c.state, c.country, c.zipcode, c.address, c.timestamp,
+				COALESCE(p.product_count, 0) as product_count,
+				COALESCE(o.order_count, 0) as order_count
+			FROM cscart_companies c
+			LEFT JOIN (
+				SELECT company_id, COUNT(*) as product_count 
+				FROM cscart_products 
+				GROUP BY company_id
+			) p ON p.company_id = c.company_id
+			LEFT JOIN (
+				SELECT company_id, COUNT(*) as order_count 
+				FROM cscart_orders 
+				GROUP BY company_id
+			) o ON o.company_id = c.company_id
+			${whereSql}
+			ORDER BY c.company_id ASC
+			LIMIT ? OFFSET ?
+		`;
+	} else {
+		// Fast query without counts for preview
+		sql = `
+			SELECT company_id, company, email, url, phone, city, state, country, zipcode, address, timestamp,
+				   0 as product_count, 0 as order_count
+			FROM cscart_companies c
+			${whereSql}
+			ORDER BY company_id ASC
+			LIMIT ? OFFSET ?
+		`;
+	}
 
 	const results = [];
 	let offset = 0;

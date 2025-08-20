@@ -26,7 +26,7 @@ const config = {
 		database: process.env.DB_NAME || 'cscart',
 	},
 	concurrency: getNumber('SYNC_CONCURRENCY', 5),
-	pageSize: getNumber('PAGE_SIZE', 500),
+	pageSize: getNumber('PAGE_SIZE', 100),
 	companyIdsFilter: (process.env.COMPANY_IDS || '')
 		.split(',')
 		.map((s) => s.trim())

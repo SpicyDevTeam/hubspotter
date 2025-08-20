@@ -85,6 +85,13 @@ async function ensureSchema() {
 		groupName: 'companyinformation',
 		description: 'Number of orders in CS-Cart',
 	});
+	await ensureCustomProperty(client, 'companies', 'cscart_email', {
+		label: 'CS-Cart Email',
+		type: 'string',
+		fieldType: 'text',
+		groupName: 'companyinformation',
+		description: 'Company email from CS-Cart',
+	});
 	await ensureCustomProperty(client, 'contacts', 'cscart_user_id', {
 		label: 'CS-Cart User ID',
 		type: 'number',

@@ -15,7 +15,7 @@ export async function GET(request: Request) {
 			.map((n) => Number(n))
 			.filter((n) => Number.isFinite(n));
 		const pool = await createPool();
-		const companies = await fetchCompanies(pool, { pageSize: config.pageSize, companyIds: ids.length ? ids : undefined });
+		const companies = await fetchCompanies(pool, { pageSize: config.pageSize, companyIds: ids.length ? ids : undefined, includeCounts: true });
 		await pool.end();
 		return NextResponse.json({ ok: true, count: companies.length, data: companies });
 	} catch (err: any) {
