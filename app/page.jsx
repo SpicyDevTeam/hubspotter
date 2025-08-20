@@ -9,6 +9,8 @@ export default function Page() {
 	const [count, setCount] = useState('');
 	const [logs, setLogs] = useState([]);
 	const [status, setStatus] = useState('Idle');
+	const [sortField, setSortField] = useState('company_id');
+	const [sortDirection, setSortDirection] = useState('asc');
 
 	async function refreshStatus() {
 		try {
@@ -45,6 +47,56 @@ export default function Page() {
 		await refreshStatus();
 	}
 
+	const sortedRows = useMemo(() => {
+		if (!rows.length) return [];
+		
+		return [...rows].sort((a, b) => {
+			let aVal = a[sortField];
+			let bVal = b[sortField];
+			
+			// Handle numeric fields
+			if (sortField === 'company_id' || sortField === 'product_count' || sortField === 'order_count') {
+				aVal = Number(aVal) || 0;
+				bVal = Number(bVal) || 0;
+			} else {
+				// Handle string fields
+				aVal = String(aVal || '').toLowerCase();
+				bVal = String(bVal || '').toLowerCase();
+			}
+			
+			if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1;
+			if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1;
+			return 0;
+		});
+	}, [rows, sortField, sortDirection]);
+
+	const handleSort = (field) => {
+		if (sortField === field) {
+			setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+		} else {
+			setSortField(field);
+			setSortDirection('asc');
+		}
+	};
+
+	const SortableHeader = ({ field, children }) => (
+		<th 
+			className="text-left font-medium px-3 py-2 cursor-pointer hover:bg-gray-200 select-none"
+			onClick={() => handleSort(field)}
+		>
+			<div className="flex items-center gap-1">
+				{children}
+				<span className="text-gray-400">
+					{sortField === field ? (
+						sortDirection === 'asc' ? '↑' : '↓'
+					) : (
+						'↕'
+					)}
+				</span>
+			</div>
+		</th>
+	);
+
 	useEffect(() => {
 		refreshStatus();
 	}, []);
@@ -73,18 +125,18 @@ export default function Page() {
 					<table className="min-w-full text-sm">
 						<thead className="bg-gray-100 text-gray-700">
 							<tr>
-								<th className="text-left font-medium px-3 py-2">ID</th>
-								<th className="text-left font-medium px-3 py-2">Name</th>
-								<th className="text-left font-medium px-3 py-2">Email</th>
-								<th className="text-left font-medium px-3 py-2">Phone</th>
-								<th className="text-left font-medium px-3 py-2">City</th>
-								<th className="text-left font-medium px-3 py-2">Products</th>
-								<th className="text-left font-medium px-3 py-2">Orders</th>
+								<SortableHeader field="company_id">ID</SortableHeader>
+								<SortableHeader field="company">Name</SortableHeader>
+								<SortableHeader field="email">Email</SortableHeader>
+								<SortableHeader field="phone">Phone</SortableHeader>
+								<SortableHeader field="city">City</SortableHeader>
+								<SortableHeader field="product_count">Products</SortableHeader>
+								<SortableHeader field="order_count">Orders</SortableHeader>
 								<th className="text-right font-medium px-3 py-2">Actions</th>
 							</tr>
 						</thead>
 						<tbody>
-							{rows.map((c) => (
+							{sortedRows.map((c) => (
 								<tr key={c.company_id}>
 									<td className="px-3 py-2">{c.company_id}</td>
 									<td className="px-3 py-2">{c.company}</td>

@@ -131,6 +131,11 @@ async function upsertCompany(client, properties, { dryRun = false } = {}) {
 	console.log(`🏢 Upserting company with cscart_company_id: ${externalId}, dryRun: ${dryRun}`);
 	console.log(`📋 Company properties:`, JSON.stringify(properties, null, 2));
 	
+	// Validate required properties
+	if (!properties.name) {
+		throw new Error('Company name is required but missing');
+	}
+	
 	if (externalId == null) throw new Error('upsertCompany: missing cscart_company_id');
 	
 	let existing = null;
@@ -164,8 +169,10 @@ async function upsertCompany(client, properties, { dryRun = false } = {}) {
 	}
 	
 	console.log(`🆕 Creating new company`);
+	console.log(`📋 Company creation request:`, JSON.stringify({ properties }, null, 2));
 	const res = await client.crm.companies.basicApi.create({ properties });
 	console.log(`✅ Created new company with ID: ${res.id}`);
+	console.log(`📄 Company creation response:`, res);
 	return { id: res.id, created: true };
 }
 
@@ -173,6 +180,11 @@ async function upsertContact(client, properties, { dryRun = false } = {}) {
 	const externalId = properties.cscart_user_id;
 	console.log(`👤 Upserting contact with cscart_user_id: ${externalId}, dryRun: ${dryRun}`);
 	console.log(`📋 Contact properties:`, JSON.stringify(properties, null, 2));
+	
+	// Validate required properties
+	if (!properties.email && !properties.firstname && !properties.lastname) {
+		console.log(`⚠️ Warning: Contact has no email, firstname, or lastname - this might cause issues`);
+	}
 	
 	if (externalId == null) throw new Error('upsertContact: missing cscart_user_id');
 	
@@ -207,8 +219,10 @@ async function upsertContact(client, properties, { dryRun = false } = {}) {
 	}
 	
 	console.log(`🆕 Creating new contact`);
+	console.log(`📋 Contact creation request:`, JSON.stringify({ properties }, null, 2));
 	const res = await client.crm.contacts.basicApi.create({ properties });
 	console.log(`✅ Created new contact with ID: ${res.id}`);
+	console.log(`📄 Contact creation response:`, res);
 	return { id: res.id, created: true };
 }
 
