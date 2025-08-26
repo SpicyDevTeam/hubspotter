@@ -14,6 +14,41 @@ export default function Page() {
 	const [sortDirection, setSortDirection] = useState('asc');
 	const [statusFilter, setStatusFilter] = useState(''); // '' = all, 'A' = active, 'D' = draft
 	
+	// Function to group countries into regions
+	const groupCountriesIntoRegions = (countriesString) => {
+		if (!countriesString || countriesString.trim() === '') return [];
+		
+		const countries = countriesString.split(',').map(c => c.trim());
+		const regions = new Set();
+		
+		// European Union countries
+		const europeanCountries = [
+			'AT', 'BE', 'BG', 'HR', 'CY', 'CZ', 'DK', 'EE', 'FI', 'FR', 
+			'DE', 'GR', 'HU', 'IE', 'IT', 'LV', 'LT', 'LU', 'MT', 'NL', 
+			'PL', 'PT', 'RO', 'SK', 'SI', 'ES', 'SE', 'CH', 'NO', 'IS'
+		];
+		
+		// UK countries
+		const ukCountries = ['GB', 'UK'];
+		
+		countries.forEach(country => {
+			if (country === 'US') {
+				regions.add('US');
+			} else if (country === 'CA') {
+				regions.add('CA');
+			} else if (ukCountries.includes(country)) {
+				regions.add('UK');
+			} else if (europeanCountries.includes(country)) {
+				regions.add('EUROPE');
+			} else {
+				// For other countries, show the country code
+				regions.add(country);
+			}
+		});
+		
+		return Array.from(regions).sort();
+	};
+	
 	// Deduplication state
 	const [duplicates, setDuplicates] = useState([]);
 	const [duplicateCount, setDuplicateCount] = useState('');
@@ -298,11 +333,11 @@ export default function Page() {
 										<SortableHeader field="company_id">ID</SortableHeader>
 										<SortableHeader field="company">Name</SortableHeader>
 										<SortableHeader field="status">Status</SortableHeader>
-										<SortableHeader field="email">Email</SortableHeader>
+										{/* <SortableHeader field="email">Email</SortableHeader> */}
 										<SortableHeader field="city">City</SortableHeader>
-										<SortableHeader field="product_count_active">Products (A)</SortableHeader>
-										<SortableHeader field="product_count_draft">Products (D)</SortableHeader>
-										<SortableHeader field="order_count_filtered">Orders (C+P+S)</SortableHeader>
+										<SortableHeader field="product_count_active">Active</SortableHeader>
+										<SortableHeader field="product_count_draft">Drafts</SortableHeader>
+										<SortableHeader field="order_count_filtered">Orders</SortableHeader>
 										<th className="text-left font-medium px-4 py-3 whitespace-nowrap">Payments</th>
 										<th className="text-left font-medium px-4 py-3 whitespace-nowrap">Shipping Regions</th>
 										<th className="text-right font-medium px-4 py-3 whitespace-nowrap">Actions</th>
@@ -326,7 +361,7 @@ export default function Page() {
 													 c.status || 'Unknown'}
 												</span>
 											</td>
-											<td className="px-4 py-3">{c.email || ''}</td>
+											{/* <td className="px-4 py-3">{c.email || ''}</td> */}
 											<td className="px-4 py-3">{c.city || ''}</td>
 											<td className="px-4 py-3 text-center">{c.product_count_active || 0}</td>
 											<td className="px-4 py-3 text-center">{c.product_count_draft || 0}</td>
@@ -361,19 +396,24 @@ export default function Page() {
 											<td className="px-4 py-3">
 												<div className="flex gap-1 flex-wrap max-w-xs">
 													{c.shipping_countries && c.shipping_countries.trim() !== '' ? (
-														c.shipping_countries.split(',').slice(0, 5).map((country, index) => (
-															<span key={index} className="px-1.5 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
-																{country.trim()}
-															</span>
-														))
+														groupCountriesIntoRegions(c.shipping_countries).map((region, index) => {
+															const regionColors = {
+																'US': 'bg-blue-100 text-blue-800',
+																'CA': 'bg-red-100 text-red-800', 
+																'UK': 'bg-purple-100 text-purple-800',
+																'EUROPE': 'bg-green-100 text-green-800'
+															};
+															const colorClass = regionColors[region] || 'bg-gray-100 text-gray-800';
+															
+															return (
+																<span key={index} className={`px-2 py-1 rounded text-xs font-medium ${colorClass}`}>
+																	{region}
+																</span>
+															);
+														})
 													) : (
 														<span className="px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-600">
 															No shipping
-														</span>
-													)}
-													{c.shipping_countries && c.shipping_countries.split(',').length > 5 && (
-														<span className="px-1.5 py-0.5 rounded text-xs font-medium bg-gray-200 text-gray-700">
-															+{c.shipping_countries.split(',').length - 5} more
 														</span>
 													)}
 												</div>
