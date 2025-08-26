@@ -215,7 +215,7 @@ export default function Page() {
 
 	const SortableHeader = ({ field, children }) => (
 		<th 
-			className="text-left font-medium px-3 py-2 cursor-pointer hover:bg-gray-200 select-none"
+			className="text-left font-medium px-4 py-3 cursor-pointer hover:bg-gray-200 select-none whitespace-nowrap"
 			onClick={() => handleSort(field)}
 		>
 			<div className="flex items-center gap-1">
@@ -236,7 +236,7 @@ export default function Page() {
 	}, []);
 
 	return (
-		<div className="max-w-6xl mx-auto p-6">
+		<div className="max-w-7xl mx-auto p-6">
 			<div className="flex items-center justify-between mb-6">
 				<h2 className="text-2xl font-semibold">CS-Cart → HubSpot Sync</h2>
 				<span className={`text-xs px-2.5 py-1 rounded ${status === 'Running' ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'}`}>{status}</span>
@@ -292,7 +292,7 @@ export default function Page() {
 							<div className="text-sm text-gray-600">{count}</div>
 						</div>
 						<div className="overflow-x-auto">
-							<table className="min-w-full text-sm">
+							<table className="w-full text-sm table-auto">
 								<thead className="bg-gray-100 text-gray-700">
 									<tr>
 										<SortableHeader field="company_id">ID</SortableHeader>
@@ -303,16 +303,16 @@ export default function Page() {
 										<SortableHeader field="product_count_active">Products (A)</SortableHeader>
 										<SortableHeader field="product_count_draft">Products (D)</SortableHeader>
 										<SortableHeader field="order_count_filtered">Orders (C+P+S)</SortableHeader>
-										<th className="text-left font-medium px-3 py-2">Payments</th>
-										<th className="text-right font-medium px-3 py-2">Actions</th>
+										<th className="text-left font-medium px-4 py-3 whitespace-nowrap">Payments</th>
+										<th className="text-right font-medium px-4 py-3 whitespace-nowrap">Actions</th>
 									</tr>
 								</thead>
 								<tbody>
 									{sortedRows.map((c) => (
-										<tr key={c.company_id}>
-											<td className="px-3 py-2">{c.company_id}</td>
-											<td className="px-3 py-2">{c.company}</td>
-											<td className="px-3 py-2">
+										<tr key={c.company_id} className="border-b border-gray-100 hover:bg-gray-50">
+											<td className="px-4 py-3 whitespace-nowrap">{c.company_id}</td>
+											<td className="px-4 py-3">{c.company}</td>
+											<td className="px-4 py-3">
 												<span className={`px-2 py-1 rounded text-xs font-medium ${
 													c.status === 'A' ? 'bg-green-100 text-green-800' : 
 													c.status === 'D' ? 'bg-yellow-100 text-yellow-800' : 
@@ -325,11 +325,11 @@ export default function Page() {
 													 c.status || 'Unknown'}
 												</span>
 											</td>
-											<td className="px-3 py-2">{c.email || ''}</td>
-											<td className="px-3 py-2">{c.city || ''}</td>
-											<td className="px-3 py-2">{c.product_count_active || 0}</td>
-											<td className="px-3 py-2">{c.product_count_draft || 0}</td>
-											<td className="px-3 py-2">
+											<td className="px-4 py-3">{c.email || ''}</td>
+											<td className="px-4 py-3">{c.city || ''}</td>
+											<td className="px-4 py-3 text-center">{c.product_count_active || 0}</td>
+											<td className="px-4 py-3 text-center">{c.product_count_draft || 0}</td>
+											<td className="px-4 py-3 text-center">
 												<span 
 													className="font-medium cursor-help" 
 													title={`Complete: ${c.order_count_complete || 0}, Processing: ${c.order_count_processing || 0}, Suspended: ${c.order_count_suspended || 0}`}
@@ -337,8 +337,8 @@ export default function Page() {
 													{c.order_count_filtered || 0}
 												</span>
 											</td>
-											<td className="px-3 py-2">
-												<div className="flex gap-1">
+											<td className="px-4 py-3">
+												<div className="flex gap-1 flex-wrap">
 													{c.stripe_connect_account_id && c.stripe_connect_account_id.trim() !== '' && (
 														<span className="px-2 py-1 rounded text-xs font-medium bg-purple-100 text-purple-800">
 															Stripe
@@ -357,8 +357,8 @@ export default function Page() {
 													)}
 												</div>
 											</td>
-											<td className="px-3 py-2 text-right">
-												<button onClick={() => sync([c.company_id])} className="px-3 py-1.5 rounded bg-orange-500 hover:bg-orange-400 text-white">Sync</button>
+											<td className="px-4 py-3 text-right">
+												<button onClick={() => sync([c.company_id])} className="px-3 py-1.5 rounded bg-orange-500 hover:bg-orange-400 text-white text-sm">Sync</button>
 											</td>
 										</tr>
 									))}
