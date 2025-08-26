@@ -126,6 +126,13 @@ async function ensureSchema() {
 		groupName: 'companyinformation',
 		description: 'Available payment methods (PayPal, Stripe)',
 	});
+	await ensureCustomProperty(client, 'companies', 'cscart_shipping_countries', {
+		label: 'CS-Cart Shipping Countries',
+		type: 'string',
+		fieldType: 'textarea',
+		groupName: 'companyinformation',
+		description: 'Countries the company ships to',
+	});
 	await ensureCustomProperty(client, 'contacts', 'cscart_user_id', {
 		label: 'CS-Cart User ID',
 		type: 'number',

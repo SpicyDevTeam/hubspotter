@@ -39,6 +39,7 @@ async function fetchCompanies(pool, { pageSize, companyIds, includeCounts = true
 			SELECT 
 				c.company_id, c.company, c.email, c.url, c.phone, c.city, c.state, c.country, c.zipcode, c.address, c.timestamp, c.status,
 				c.stripe_connect_account_id, c.paypal_commerce_platform_account_id,
+				COALESCE(sh.shipping_countries, '') as shipping_countries,
 				COALESCE(p.product_count_active, 0) as product_count_active,
 				COALESCE(p.product_count_draft, 0) as product_count_draft,
 				COALESCE(p.product_count_total, 0) as product_count_total,
@@ -68,6 +69,16 @@ async function fetchCompanies(pool, { pageSize, companyIds, includeCounts = true
 				FROM cscart_orders 
 				GROUP BY company_id
 			) o ON o.company_id = c.company_id
+			LEFT JOIN (
+				SELECT 
+					s.company_id,
+					GROUP_CONCAT(DISTINCT de.element ORDER BY de.element) as shipping_countries
+				FROM cscart_shippings s
+				LEFT JOIN cscart_shipping_rates sr ON sr.shipping_id = s.shipping_id
+				LEFT JOIN cscart_destination_elements de ON de.destination_id = sr.destination_id
+				WHERE s.status = 'A' AND de.element_type = 'C'
+				GROUP BY s.company_id
+			) sh ON sh.company_id = c.company_id
 			${whereSql}
 			ORDER BY c.company_id ASC
 			LIMIT ? OFFSET ?
@@ -76,7 +87,7 @@ async function fetchCompanies(pool, { pageSize, companyIds, includeCounts = true
 		// Fast query without counts for preview
 		sql = `
 			SELECT company_id, company, email, url, phone, city, state, country, zipcode, address, timestamp, status,
-				   stripe_connect_account_id, paypal_commerce_platform_account_id,
+				   stripe_connect_account_id, paypal_commerce_platform_account_id, '' as shipping_countries,
 				   0 as product_count_active, 0 as product_count_draft, 0 as product_count_total, 
 				   0 as order_count_complete, 0 as order_count_processing, 0 as order_count_suspended, 
 				   0 as order_count_filtered, 0 as order_count_total

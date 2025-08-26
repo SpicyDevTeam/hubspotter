@@ -304,6 +304,7 @@ export default function Page() {
 										<SortableHeader field="product_count_draft">Products (D)</SortableHeader>
 										<SortableHeader field="order_count_filtered">Orders (C+P+S)</SortableHeader>
 										<th className="text-left font-medium px-4 py-3 whitespace-nowrap">Payments</th>
+										<th className="text-left font-medium px-4 py-3 whitespace-nowrap">Shipping Regions</th>
 										<th className="text-right font-medium px-4 py-3 whitespace-nowrap">Actions</th>
 									</tr>
 								</thead>
@@ -353,6 +354,26 @@ export default function Page() {
 													 (!c.paypal_commerce_platform_account_id || c.paypal_commerce_platform_account_id.trim() === '') && (
 														<span className="px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-600">
 															None
+														</span>
+													)}
+												</div>
+											</td>
+											<td className="px-4 py-3">
+												<div className="flex gap-1 flex-wrap max-w-xs">
+													{c.shipping_countries && c.shipping_countries.trim() !== '' ? (
+														c.shipping_countries.split(',').slice(0, 5).map((country, index) => (
+															<span key={index} className="px-1.5 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+																{country.trim()}
+															</span>
+														))
+													) : (
+														<span className="px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-600">
+															No shipping
+														</span>
+													)}
+													{c.shipping_countries && c.shipping_countries.split(',').length > 5 && (
+														<span className="px-1.5 py-0.5 rounded text-xs font-medium bg-gray-200 text-gray-700">
+															+{c.shipping_countries.split(',').length - 5} more
 														</span>
 													)}
 												</div>

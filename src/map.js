@@ -31,6 +31,7 @@ function mapCompanyRowToHubSpotProperties(row) {
 		cscart_order_count: Number(row.order_count_filtered || row.order_count || 0),
 		cscart_status: row.status || 'A',
 		cscart_payment_methods: paymentMethods.length > 0 ? paymentMethods.join(', ') : 'None',
+		cscart_shipping_countries: row.shipping_countries || 'None',
 	};
 }
 
