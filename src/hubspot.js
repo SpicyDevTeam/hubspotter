@@ -44,8 +44,17 @@ async function ensureCustomProperty(client, objectType, propertyName, propertyDe
 					fieldType: propertyDef.fieldType || 'number',
 					groupName: propertyDef.groupName || 'companyinformation',
 					description: propertyDef.description || '',
-					options: []
 				};
+				
+				// Only add options if they are provided and the type is enumeration
+				if (propertyDef.options && Array.isArray(propertyDef.options) && propertyDef.options.length > 0) {
+					propertyRequest.options = propertyDef.options;
+				} else if (propertyDef.type === 'enumeration') {
+					// For enumeration types without options, don't include the options field
+					delete propertyRequest.options;
+				} else {
+					propertyRequest.options = [];
+				}
 				console.log(`📋 Property request:`, JSON.stringify(propertyRequest, null, 2));
 				const result = await rateLimitedCall(() => client.crm.properties.coreApi.create(objectType, propertyRequest));
 				console.log(`✅ Successfully created property ${propertyName} for ${objectType}`);
@@ -109,15 +118,10 @@ async function ensureSchema() {
 	});
 	await ensureCustomProperty(client, 'companies', 'cscart_status', {
 		label: 'CS-Cart Status',
-		type: 'enumeration',
-		fieldType: 'select',
+		type: 'string',
+		fieldType: 'text',
 		groupName: 'companyinformation',
 		description: 'Company status from CS-Cart (A=Active, D=Draft, S=Suspended)',
-		options: [
-			{ label: 'Active', value: 'A' },
-			{ label: 'Draft', value: 'D' },
-			{ label: 'Suspended', value: 'S' }
-		]
 	});
 	await ensureCustomProperty(client, 'companies', 'cscart_payment_methods', {
 		label: 'CS-Cart Payment Methods',
