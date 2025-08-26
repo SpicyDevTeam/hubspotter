@@ -119,6 +119,13 @@ async function ensureSchema() {
 			{ label: 'Suspended', value: 'S' }
 		]
 	});
+	await ensureCustomProperty(client, 'companies', 'cscart_payment_methods', {
+		label: 'CS-Cart Payment Methods',
+		type: 'string',
+		fieldType: 'text',
+		groupName: 'companyinformation',
+		description: 'Available payment methods (PayPal, Stripe)',
+	});
 	await ensureCustomProperty(client, 'contacts', 'cscart_user_id', {
 		label: 'CS-Cart User ID',
 		type: 'number',

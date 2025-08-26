@@ -38,6 +38,7 @@ async function fetchCompanies(pool, { pageSize, companyIds, includeCounts = true
 		sql = `
 			SELECT 
 				c.company_id, c.company, c.email, c.url, c.phone, c.city, c.state, c.country, c.zipcode, c.address, c.timestamp, c.status,
+				c.stripe_connect_account_id, c.paypal_commerce_platform_account_id,
 				COALESCE(p.product_count_active, 0) as product_count_active,
 				COALESCE(p.product_count_draft, 0) as product_count_draft,
 				COALESCE(p.product_count_total, 0) as product_count_total,
@@ -75,6 +76,7 @@ async function fetchCompanies(pool, { pageSize, companyIds, includeCounts = true
 		// Fast query without counts for preview
 		sql = `
 			SELECT company_id, company, email, url, phone, city, state, country, zipcode, address, timestamp, status,
+				   stripe_connect_account_id, paypal_commerce_platform_account_id,
 				   0 as product_count_active, 0 as product_count_draft, 0 as product_count_total, 
 				   0 as order_count_complete, 0 as order_count_processing, 0 as order_count_suspended, 
 				   0 as order_count_filtered, 0 as order_count_total

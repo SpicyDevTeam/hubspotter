@@ -304,6 +304,7 @@ export default function Page() {
 										<SortableHeader field="product_count_active">Products (A)</SortableHeader>
 										<SortableHeader field="product_count_draft">Products (D)</SortableHeader>
 										<SortableHeader field="order_count_filtered">Orders (C+P+S)</SortableHeader>
+										<th className="text-left font-medium px-3 py-2">Payments</th>
 										<th className="text-right font-medium px-3 py-2">Actions</th>
 									</tr>
 								</thead>
@@ -337,6 +338,26 @@ export default function Page() {
 												>
 													{c.order_count_filtered || 0}
 												</span>
+											</td>
+											<td className="px-3 py-2">
+												<div className="flex gap-1">
+													{c.stripe_connect_account_id && c.stripe_connect_account_id.trim() !== '' && (
+														<span className="px-2 py-1 rounded text-xs font-medium bg-purple-100 text-purple-800">
+															Stripe
+														</span>
+													)}
+													{c.paypal_commerce_platform_account_id && c.paypal_commerce_platform_account_id.trim() !== '' && (
+														<span className="px-2 py-1 rounded text-xs font-medium bg-blue-100 text-blue-800">
+															PayPal
+														</span>
+													)}
+													{(!c.stripe_connect_account_id || c.stripe_connect_account_id.trim() === '') && 
+													 (!c.paypal_commerce_platform_account_id || c.paypal_commerce_platform_account_id.trim() === '') && (
+														<span className="px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-600">
+															None
+														</span>
+													)}
+												</div>
 											</td>
 											<td className="px-3 py-2 text-right">
 												<button onClick={() => sync([c.company_id])} className="px-3 py-1.5 rounded bg-orange-500 hover:bg-orange-400 text-white">Sync</button>

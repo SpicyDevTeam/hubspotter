@@ -7,6 +7,15 @@ function nullIfEmpty(value) {
 }
 
 function mapCompanyRowToHubSpotProperties(row) {
+	// Determine available payment methods
+	const paymentMethods = [];
+	if (row.stripe_connect_account_id && row.stripe_connect_account_id.trim() !== '') {
+		paymentMethods.push('Stripe');
+	}
+	if (row.paypal_commerce_platform_account_id && row.paypal_commerce_platform_account_id.trim() !== '') {
+		paymentMethods.push('PayPal');
+	}
+	
 	return {
 		name: row.company,
 		domain: nullIfEmpty(row.url || ''),
@@ -21,6 +30,7 @@ function mapCompanyRowToHubSpotProperties(row) {
 		cscart_product_count: Number(row.product_count_active || row.product_count || 0),
 		cscart_order_count: Number(row.order_count_filtered || row.order_count || 0),
 		cscart_status: row.status || 'A',
+		cscart_payment_methods: paymentMethods.length > 0 ? paymentMethods.join(', ') : 'None',
 	};
 }
 
