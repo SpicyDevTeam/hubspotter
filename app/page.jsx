@@ -299,7 +299,6 @@ export default function Page() {
 										<SortableHeader field="company">Name</SortableHeader>
 										<SortableHeader field="status">Status</SortableHeader>
 										<SortableHeader field="email">Email</SortableHeader>
-										<SortableHeader field="phone">Phone</SortableHeader>
 										<SortableHeader field="city">City</SortableHeader>
 										<SortableHeader field="product_count_active">Products (A)</SortableHeader>
 										<SortableHeader field="product_count_draft">Products (D)</SortableHeader>
@@ -327,7 +326,6 @@ export default function Page() {
 												</span>
 											</td>
 											<td className="px-3 py-2">{c.email || ''}</td>
-											<td className="px-3 py-2">{c.phone || ''}</td>
 											<td className="px-3 py-2">{c.city || ''}</td>
 											<td className="px-3 py-2">{c.product_count_active || 0}</td>
 											<td className="px-3 py-2">{c.product_count_draft || 0}</td>
