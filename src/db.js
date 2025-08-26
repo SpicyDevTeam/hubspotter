@@ -41,7 +41,11 @@ async function fetchCompanies(pool, { pageSize, companyIds, includeCounts = true
 				COALESCE(p.product_count_active, 0) as product_count_active,
 				COALESCE(p.product_count_draft, 0) as product_count_draft,
 				COALESCE(p.product_count_total, 0) as product_count_total,
-				COALESCE(o.order_count, 0) as order_count
+				COALESCE(o.order_count_complete, 0) as order_count_complete,
+				COALESCE(o.order_count_processing, 0) as order_count_processing,
+				COALESCE(o.order_count_suspended, 0) as order_count_suspended,
+				COALESCE(o.order_count_filtered, 0) as order_count_filtered,
+				COALESCE(o.order_count_total, 0) as order_count_total
 			FROM cscart_companies c
 			LEFT JOIN (
 				SELECT 
@@ -53,7 +57,13 @@ async function fetchCompanies(pool, { pageSize, companyIds, includeCounts = true
 				GROUP BY company_id
 			) p ON p.company_id = c.company_id
 			LEFT JOIN (
-				SELECT company_id, COUNT(*) as order_count 
+				SELECT 
+					company_id, 
+					SUM(CASE WHEN status = 'C' THEN 1 ELSE 0 END) as order_count_complete,
+					SUM(CASE WHEN status = 'P' THEN 1 ELSE 0 END) as order_count_processing,
+					SUM(CASE WHEN status = 'S' THEN 1 ELSE 0 END) as order_count_suspended,
+					SUM(CASE WHEN status IN ('C', 'P', 'S') THEN 1 ELSE 0 END) as order_count_filtered,
+					COUNT(*) as order_count_total
 				FROM cscart_orders 
 				GROUP BY company_id
 			) o ON o.company_id = c.company_id
@@ -65,7 +75,9 @@ async function fetchCompanies(pool, { pageSize, companyIds, includeCounts = true
 		// Fast query without counts for preview
 		sql = `
 			SELECT company_id, company, email, url, phone, city, state, country, zipcode, address, timestamp, status,
-				   0 as product_count_active, 0 as product_count_draft, 0 as product_count_total, 0 as order_count
+				   0 as product_count_active, 0 as product_count_draft, 0 as product_count_total, 
+				   0 as order_count_complete, 0 as order_count_processing, 0 as order_count_suspended, 
+				   0 as order_count_filtered, 0 as order_count_total
 			FROM cscart_companies c
 			${whereSql}
 			ORDER BY company_id ASC

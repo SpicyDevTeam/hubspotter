@@ -19,7 +19,7 @@ function mapCompanyRowToHubSpotProperties(row) {
 		cscart_email: nullIfEmpty(row.email),
 		cscart_company_id: Number(row.company_id),
 		cscart_product_count: Number(row.product_count_active || row.product_count || 0),
-		cscart_order_count: Number(row.order_count || 0),
+		cscart_order_count: Number(row.order_count_filtered || row.order_count || 0),
 		cscart_status: row.status || 'A',
 	};
 }

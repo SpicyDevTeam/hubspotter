@@ -303,7 +303,7 @@ export default function Page() {
 										<SortableHeader field="city">City</SortableHeader>
 										<SortableHeader field="product_count_active">Products (A)</SortableHeader>
 										<SortableHeader field="product_count_draft">Products (D)</SortableHeader>
-										<SortableHeader field="order_count">Orders</SortableHeader>
+										<SortableHeader field="order_count_filtered">Orders (C+P+S)</SortableHeader>
 										<th className="text-right font-medium px-3 py-2">Actions</th>
 									</tr>
 								</thead>
@@ -330,7 +330,14 @@ export default function Page() {
 											<td className="px-3 py-2">{c.city || ''}</td>
 											<td className="px-3 py-2">{c.product_count_active || 0}</td>
 											<td className="px-3 py-2">{c.product_count_draft || 0}</td>
-											<td className="px-3 py-2">{c.order_count || 0}</td>
+											<td className="px-3 py-2">
+												<span 
+													className="font-medium cursor-help" 
+													title={`Complete: ${c.order_count_complete || 0}, Processing: ${c.order_count_processing || 0}, Suspended: ${c.order_count_suspended || 0}`}
+												>
+													{c.order_count_filtered || 0}
+												</span>
+											</td>
 											<td className="px-3 py-2 text-right">
 												<button onClick={() => sync([c.company_id])} className="px-3 py-1.5 rounded bg-orange-500 hover:bg-orange-400 text-white">Sync</button>
 											</td>
