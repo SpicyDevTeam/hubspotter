@@ -8,14 +8,21 @@ export async function GET(request: Request) {
 	try {
 		const { searchParams } = new URL(request.url);
 		const idsStr = searchParams.get('ids') || '';
+		const statusStr = searchParams.get('status') || '';
 		const ids = idsStr
 			.split(',')
 			.map((s) => s.trim())
 			.filter(Boolean)
 			.map((n) => Number(n))
 			.filter((n) => Number.isFinite(n));
+		const status = statusStr && ['A', 'D', 'S'].includes(statusStr.toUpperCase()) ? statusStr.toUpperCase() : null;
 		const pool = await createPool();
-		const companies = await fetchCompanies(pool, { pageSize: config.pageSize, companyIds: ids.length ? ids : undefined, includeCounts: true });
+		const companies = await fetchCompanies(pool, { 
+			pageSize: config.pageSize, 
+			companyIds: ids.length ? ids : undefined, 
+			includeCounts: true,
+			status: status
+		});
 		await pool.end();
 		return NextResponse.json({ ok: true, count: companies.length, data: companies });
 	} catch (err: any) {

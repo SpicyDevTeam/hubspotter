@@ -20,12 +20,16 @@ async function createPool() {
 	return pool;
 }
 
-async function fetchCompanies(pool, { pageSize, companyIds, includeCounts = true }) {
+async function fetchCompanies(pool, { pageSize, companyIds, includeCounts = true, status = null }) {
 	const where = [];
 	const params = [];
 	if (companyIds && companyIds.length > 0) {
 		where.push(`c.company_id IN (${companyIds.map(() => '?').join(',')})`);
 		params.push(...companyIds);
+	}
+	if (status && ['A', 'D', 'S'].includes(status)) {
+		where.push(`c.status = ?`);
+		params.push(status);
 	}
 	const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
 	
@@ -33,12 +37,18 @@ async function fetchCompanies(pool, { pageSize, companyIds, includeCounts = true
 	if (includeCounts) {
 		sql = `
 			SELECT 
-				c.company_id, c.company, c.email, c.url, c.phone, c.city, c.state, c.country, c.zipcode, c.address, c.timestamp,
-				COALESCE(p.product_count, 0) as product_count,
+				c.company_id, c.company, c.email, c.url, c.phone, c.city, c.state, c.country, c.zipcode, c.address, c.timestamp, c.status,
+				COALESCE(p.product_count_active, 0) as product_count_active,
+				COALESCE(p.product_count_draft, 0) as product_count_draft,
+				COALESCE(p.product_count_total, 0) as product_count_total,
 				COALESCE(o.order_count, 0) as order_count
 			FROM cscart_companies c
 			LEFT JOIN (
-				SELECT company_id, COUNT(*) as product_count 
+				SELECT 
+					company_id, 
+					SUM(CASE WHEN status = 'A' THEN 1 ELSE 0 END) as product_count_active,
+					SUM(CASE WHEN status = 'D' THEN 1 ELSE 0 END) as product_count_draft,
+					COUNT(*) as product_count_total
 				FROM cscart_products 
 				GROUP BY company_id
 			) p ON p.company_id = c.company_id
@@ -54,8 +64,8 @@ async function fetchCompanies(pool, { pageSize, companyIds, includeCounts = true
 	} else {
 		// Fast query without counts for preview
 		sql = `
-			SELECT company_id, company, email, url, phone, city, state, country, zipcode, address, timestamp,
-				   0 as product_count, 0 as order_count
+			SELECT company_id, company, email, url, phone, city, state, country, zipcode, address, timestamp, status,
+				   0 as product_count_active, 0 as product_count_draft, 0 as product_count_total, 0 as order_count
 			FROM cscart_companies c
 			${whereSql}
 			ORDER BY company_id ASC
@@ -87,6 +97,183 @@ async function fetchAdminUsersForCompanies(pool, companyIds) {
 	return rows || [];
 }
 
-module.exports = { createPool, fetchCompanies, fetchAdminUsersForCompanies };
+// Function to find potential duplicate companies based on name similarity
+async function findDuplicateCompanies(pool) {
+	const sql = `
+		SELECT c.company_id, c.company, c.email, c.phone, c.city, c.state, c.country,
+			   COALESCE(p.product_count, 0) as product_count,
+			   COALESCE(o.order_count, 0) as order_count
+		FROM cscart_companies c
+		LEFT JOIN (
+			SELECT company_id, COUNT(*) as product_count 
+			FROM cscart_products 
+			GROUP BY company_id
+		) p ON p.company_id = c.company_id
+		LEFT JOIN (
+			SELECT company_id, COUNT(*) as order_count 
+			FROM cscart_orders 
+			GROUP BY company_id
+		) o ON o.company_id = c.company_id
+		WHERE c.company IS NOT NULL AND TRIM(c.company) != ''
+		ORDER BY c.company ASC
+	`;
+	
+	const [rows] = await pool.query(sql);
+	const companies = rows || [];
+	
+	// Group companies by normalized name to identify potential duplicates
+	const groups = new Map();
+	
+	for (const company of companies) {
+		// Normalize company name: lowercase, remove extra spaces, remove common business suffixes
+		const normalizedName = company.company
+			.toLowerCase()
+			.replace(/\s+/g, ' ')
+			.replace(/\b(inc|corp|corporation|ltd|limited|llc|co|company)\b\.?$/g, '')
+			.trim();
+		
+		if (!groups.has(normalizedName)) {
+			groups.set(normalizedName, []);
+		}
+		groups.get(normalizedName).push(company);
+	}
+	
+	// Return only groups with multiple companies (potential duplicates)
+	const duplicates = [];
+	for (const [normalizedName, companyGroup] of groups) {
+		if (companyGroup.length > 1) {
+			duplicates.push({
+				normalizedName,
+				companies: companyGroup,
+				count: companyGroup.length
+			});
+		}
+	}
+	
+	return duplicates.sort((a, b) => b.count - a.count); // Sort by number of duplicates descending
+}
+
+// Function to merge companies by updating all references to point to the primary company
+async function mergeCompanies(pool, primaryCompanyId, duplicateIds, { dryRun = false } = {}) {
+	if (!duplicateIds || duplicateIds.length === 0) {
+		throw new Error('No duplicate company IDs provided for merging');
+	}
+	
+	// Validate that primary company exists
+	const [primaryCheck] = await pool.query(
+		'SELECT company_id, company FROM cscart_companies WHERE company_id = ?',
+		[primaryCompanyId]
+	);
+	
+	if (!primaryCheck || primaryCheck.length === 0) {
+		throw new Error(`Primary company ${primaryCompanyId} not found`);
+	}
+	
+	const primary = primaryCheck[0];
+	const results = {
+		primary: primary,
+		merged: [],
+		errors: [],
+		dryRun
+	};
+	
+	for (const duplicateId of duplicateIds) {
+		if (duplicateId === primaryCompanyId) {
+			results.errors.push(`Cannot merge company ${duplicateId} with itself`);
+			continue;
+		}
+		
+		try {
+			// Get duplicate company info
+			const [duplicateCheck] = await pool.query(
+				'SELECT company_id, company FROM cscart_companies WHERE company_id = ?',
+				[duplicateId]
+			);
+			
+			if (!duplicateCheck || duplicateCheck.length === 0) {
+				results.errors.push(`Duplicate company ${duplicateId} not found`);
+				continue;
+			}
+			
+			const duplicate = duplicateCheck[0];
+			
+			if (!dryRun) {
+				// Start transaction
+				await pool.query('START TRANSACTION');
+				
+				try {
+					// Update products to point to primary company
+					await pool.query(
+						'UPDATE cscart_products SET company_id = ? WHERE company_id = ?',
+						[primaryCompanyId, duplicateId]
+					);
+					
+					// Update orders to point to primary company  
+					await pool.query(
+						'UPDATE cscart_orders SET company_id = ? WHERE company_id = ?',
+						[primaryCompanyId, duplicateId]
+					);
+					
+					// Update users to point to primary company
+					await pool.query(
+						'UPDATE cscart_users SET company_id = ? WHERE company_id = ?',
+						[primaryCompanyId, duplicateId]
+					);
+					
+					// Delete the duplicate company record
+					await pool.query('DELETE FROM cscart_companies WHERE company_id = ?', [duplicateId]);
+					
+					// Commit transaction
+					await pool.query('COMMIT');
+					
+					results.merged.push({
+						id: duplicateId,
+						name: duplicate.company,
+						success: true
+					});
+				} catch (err) {
+					// Rollback on error
+					await pool.query('ROLLBACK');
+					throw err;
+				}
+			} else {
+				// Dry run - just collect what would be merged
+				const [productCount] = await pool.query(
+					'SELECT COUNT(*) as count FROM cscart_products WHERE company_id = ?',
+					[duplicateId]
+				);
+				const [orderCount] = await pool.query(
+					'SELECT COUNT(*) as count FROM cscart_orders WHERE company_id = ?',
+					[duplicateId]
+				);
+				const [userCount] = await pool.query(
+					'SELECT COUNT(*) as count FROM cscart_users WHERE company_id = ?',
+					[duplicateId]
+				);
+				
+				results.merged.push({
+					id: duplicateId,
+					name: duplicate.company,
+					productCount: productCount[0]?.count || 0,
+					orderCount: orderCount[0]?.count || 0,
+					userCount: userCount[0]?.count || 0,
+					success: true
+				});
+			}
+		} catch (err) {
+			results.errors.push(`Failed to merge company ${duplicateId}: ${err.message}`);
+		}
+	}
+	
+	return results;
+}
+
+module.exports = { 
+	createPool, 
+	fetchCompanies, 
+	fetchAdminUsersForCompanies,
+	findDuplicateCompanies,
+	mergeCompanies
+};
 
 
