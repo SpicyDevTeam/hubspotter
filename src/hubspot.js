@@ -3,6 +3,27 @@
 const { Client } = require('@hubspot/api-client');
 const { config } = require('./config');
 
+// Cache for association type id between contacts and companies
+let cachedContactToCompanyAssociationTypeId = null;
+
+async function getContactToCompanyAssociationTypeId(client) {
+	if (cachedContactToCompanyAssociationTypeId != null) return cachedContactToCompanyAssociationTypeId;
+	try {
+		const res = await rateLimitedCall(() => client.crm.associations.v4.schema.typesApi.getAll('contacts', 'companies'));
+		const types = Array.isArray(res?.results) ? res.results : [];
+		const preferred = types.find((t) => t.category === 'HUBSPOT_DEFINED') || types[0];
+		if (preferred?.typeId != null) {
+			cachedContactToCompanyAssociationTypeId = preferred.typeId;
+			console.log(`🔢 Using associationTypeId for contact→company: ${cachedContactToCompanyAssociationTypeId}`);
+			return cachedContactToCompanyAssociationTypeId;
+		}
+	} catch (err) {
+		console.warn('⚠️ Failed to fetch association type id for contact→company, will fallback to 280:', err?.message || err);
+	}
+	cachedContactToCompanyAssociationTypeId = 280;
+	return cachedContactToCompanyAssociationTypeId;
+}
+
 // Rate limiting utility
 function sleep(ms) {
 	return new Promise(resolve => setTimeout(resolve, ms));
@@ -274,9 +295,35 @@ async function upsertContact(client, properties, { dryRun = false } = {}) {
 async function associateContactToCompany(client, contactId, companyId, { dryRun = false } = {}) {
 	if (!contactId || !companyId) return;
 	if (dryRun) return;
-	await rateLimitedCall(() => client.crm.associations.v4.basicApi.create('contacts', contactId, 'companies', companyId, [
-		{ associationCategory: 'HUBSPOT_DEFINED', associationTypeId: 280 }
-	]));
+	if (String(contactId) === String(companyId)) {
+		console.warn(`⚠️ Skipping association; contactId equals companyId (${contactId}) which is invalid`);
+		return;
+	}
+	console.log(`🔗 Associating contact ${contactId} -> company ${companyId}`);
+	try {
+		// Verify the target company exists and is a company
+		try {
+			await rateLimitedCall(() => client.crm.companies.basicApi.getById(companyId));
+		} catch (verifyErr) {
+			console.warn(`⚠️ Company id ${companyId} could not be verified as a company. Skipping association.`, verifyErr?.message || verifyErr);
+			return;
+		}
+
+		const associationTypeId = await getContactToCompanyAssociationTypeId(client);
+		await rateLimitedCall(() => client.crm.associations.v4.basicApi.create('contacts', contactId, 'companies', companyId, [
+			{ associationCategory: 'HUBSPOT_DEFINED', associationTypeId }
+		]));
+		console.log(`✅ Association created: contact ${contactId} -> company ${companyId}`);
+	} catch (err) {
+		const status = err?.statusCode || err?.status;
+		const message = err?.message || 'Association failed';
+		const body = err?.body || err?.response?.body;
+		console.error(`💥 Association failed (contact ${contactId} -> company ${companyId})`);
+		console.error(`HTTP-Code: ${status}`);
+		console.error(`Message: ${message}`);
+		if (body) console.error(`Body: ${typeof body === 'string' ? body : JSON.stringify(body)}`);
+		throw err;
+	}
 }
 
 // Function to find and remove duplicate companies in HubSpot after CS-Cart merge

@@ -55,7 +55,9 @@ async function runSync({ dryRun = config.dryRun, companyIds = config.companyIdsF
 						emit({ level: 'info', message: `Associated contact ${res.id || '(dry-run)'} -> company ${hsCompanyId || '(dry-run)'}` });
 					}
 				} catch (err) {
-					emit({ level: 'error', message: `Failed to upsert contact user ${user.user_id}: ${err.message}` });
+					const status = err?.statusCode || err?.status;
+					const body = err?.body || err?.response?.body;
+					emit({ level: 'error', message: `Failed to upsert/associate contact user ${user.user_id}: ${err?.message || 'Unknown error'}${status ? ` (HTTP ${status})` : ''}${body ? ` | body=${typeof body === 'string' ? body : JSON.stringify(body)}` : ''}` });
 				}
 			})
 		)

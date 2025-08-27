@@ -306,6 +306,13 @@ export default function Page() {
 			{/* Sync Tab Content */}
 			{activeTab === 'sync' && (
 				<>
+					<div className="mb-6">
+						<strong className="block mb-2">Logs</strong>
+						<div className="whitespace-pre-wrap bg-slate-900 text-slate-50 p-3 rounded min-h-[160px]">{logs.map((e, i) => (
+							<div key={i}>{typeof e === 'string' ? e : `${e.level || 'info'}: ${e.message || ''}`}</div>
+						))}</div>
+					</div>
+
 					<div className="flex flex-wrap gap-3 items-center mb-4">
 						<label className="text-sm">Company IDs</label>
 						<input value={ids} onChange={(e) => setIds(e.target.value)} placeholder="e.g. 1,2,3" className="border rounded px-3 py-2 text-sm w-72" />
@@ -428,12 +435,7 @@ export default function Page() {
 						</div>
 					</div>
 
-					<div className="mt-6">
-						<strong className="block mb-2">Logs</strong>
-						<div className="whitespace-pre-wrap bg-slate-900 text-slate-50 p-3 rounded min-h-[160px]">{logs.map((e, i) => (
-							<div key={i}>{typeof e === 'string' ? e : `${e.level || 'info'}: ${e.message || ''}`}</div>
-						))}</div>
-					</div>
+
 				</>
 			)}
 
