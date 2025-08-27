@@ -15,7 +15,7 @@ export async function GET(request: Request) {
 		const client = await ensureSchema();
 		
 		// Get all CS-Cart companies
-		const csCartCompanies = await fetchCompanies(pool, { pageSize: 10000 });
+		const csCartCompanies = await fetchCompanies(pool, { pageSize: 10000, companyIds: [] });
 		
 		let duplicates;
 		if (method === 'targeted') {
